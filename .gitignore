@@ -29,3 +29,9 @@ dbt/dbt_packages/
 # Operating system
 .DS_Store
 Thumbs.db
+
+# Python build metadata
+*.egg-info/
+
+# Application logs
+logs/

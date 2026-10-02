@@ -3,12 +3,55 @@ from typing import Any
 
 import pandas as pd
 import requests
+import logging
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+logger = logging.getLogger(__name__)
 
 
 BCB_API_URL = (
     "https://api.bcb.gov.br/dados/serie/"
     "bcdata.sgs.{series_id}/dados"
 )
+
+
+RETRY_STATUS_CODES = (
+    429,
+    500,
+    502,
+    503,
+    504,
+)
+
+
+def create_bcb_session() -> requests.Session:
+    """
+    Cria uma sessão HTTP com retries para erros transitórios.
+    """
+
+    retry_strategy = Retry(
+        total=3,
+        connect=3,
+        read=3,
+        status=3,
+        backoff_factor=1,
+        status_forcelist=RETRY_STATUS_CODES,
+        allowed_methods=frozenset({"GET"}),
+        respect_retry_after_header=True,
+        raise_on_status=False,
+    )
+
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+
+    session = requests.Session()
+
+    session.mount("https://", adapter)
+
+    return session
+
+
+
 
 
 def extract_bcb_series(series_id: int, start_date: date, end_date: date) -> list[dict[str, Any]]:
@@ -27,9 +70,18 @@ def extract_bcb_series(series_id: int, start_date: date, end_date: date) -> list
         "dataFinal": end_date.strftime("%d/%m/%Y"),
     }
 
-    response = requests.get(url,params=params,timeout=30)
+    logger.info(
+        "Consultando API do BCB | série=%s | início=%s | fim=%s",
+        series_id,
+        start_date,
+        end_date,
+    )
+
+    with create_bcb_session() as session:
+        response = session.get(url, params=params, timeout=(5, 30))
 
     response.raise_for_status()
+
 
     records = response.json()
 
