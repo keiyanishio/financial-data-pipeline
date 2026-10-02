@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: financial-data-pipeline
+Version: 0.1.0
+Summary: Local financial data platform using public Brazilian datasets.
+Requires-Python: <3.12,>=3.11
