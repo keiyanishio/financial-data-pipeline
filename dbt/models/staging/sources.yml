@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Dados brutos carregados pelos pipelines Python.
+    schema: raw
+
+    tables:
+      - name: bcb_series
+        description: Observações das séries temporais obtidas no Banco Central.
+
+      - name: bcb_series_catalog
+        description: Catálogo com metadados das séries do Banco Central.

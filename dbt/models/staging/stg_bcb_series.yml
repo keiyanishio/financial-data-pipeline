@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: stg_bcb_series
+    description: Séries temporais do Banco Central padronizadas para consumo analítico.
+
+    columns:
+      - name: series_id
+        description: Código da série no sistema SGS do Banco Central.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_bcb_series_catalog')
+                field: series_id
+
+      - name: observation_date
+        description: Data da observação.
+        data_tests:
+          - not_null
+
+      - name: value
+        description: Valor observado na data.
+        data_tests:
+          - not_null

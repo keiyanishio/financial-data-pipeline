@@ -35,3 +35,7 @@ Thumbs.db
 
 # Application logs
 logs/
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
