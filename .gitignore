@@ -39,3 +39,5 @@ logs/
 # dbt
 dbt/target/
 dbt/dbt_packages/
+
+logs/

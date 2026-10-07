@@ -10,6 +10,9 @@ from financial_pipeline.quality.bcb import validate_bcb_series
 
 logger = logging.getLogger(__name__)
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = PROJECT_ROOT / "data"
+
 INITIAL_START_DATE = date(2025, 1, 1)
 INCREMENTAL_LOOKBACK_DAYS = 7
 
@@ -50,9 +53,21 @@ def process_series(series_id: int) -> None:
 
     period = f"{start_date}_{end_date}"
 
-    raw_path = Path(f"data/raw/bcb/series_{series_id}/{period}.json")
+    raw_path = (
+            DATA_DIR
+            / "raw"
+            / "bcb"
+            / f"series_{series_id}"
+            / f"{period}.json"
+    )
 
-    processed_path = Path(f"data/processed/bcb/series_{series_id}/{period}.parquet")
+    processed_path = (
+            DATA_DIR
+            / "processed"
+            / "bcb"
+            / f"series_{series_id}"
+            / f"{period}.parquet"
+    )
 
     save_json(records, raw_path)
     save_parquet(dataframe, processed_path)

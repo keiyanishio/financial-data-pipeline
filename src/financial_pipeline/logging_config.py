@@ -1,10 +1,22 @@
 import logging
+import os
 from logging.config import dictConfig
 from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-LOG_DIRECTORY = PROJECT_ROOT / "logs"
+
+airflow_home = os.getenv("AIRFLOW_HOME")
+
+if airflow_home:
+    LOG_DIRECTORY = (
+        Path(airflow_home)
+        / "logs"
+        / "financial_pipeline"
+    )
+else:
+    LOG_DIRECTORY = PROJECT_ROOT / "logs"
+
 LOG_FILE = LOG_DIRECTORY / "financial_pipeline.log"
 
 
