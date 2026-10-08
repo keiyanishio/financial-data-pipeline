@@ -3,10 +3,11 @@ from pathlib import Path
 import logging
 
 from financial_pipeline.logging_config import configure_logging
-from financial_pipeline.database.bcb_repository import get_latest_observation_date,upsert_bcb_series
+from financial_pipeline.database.bcb_repository import get_latest_observation_date,upsert_bcb_series, get_active_bcb_series_ids
 from financial_pipeline.ingestion.bcb import extract_bcb_series, normalize_bcb_series
 from financial_pipeline.storage.local import save_json, save_parquet
 from financial_pipeline.quality.bcb import validate_bcb_series
+from financial_pipeline.transformation.bcb import filter_bcb_series_period
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,8 @@ def process_series(series_id: int) -> None:
     records = extract_bcb_series(series_id, start_date, end_date)
 
     dataframe = normalize_bcb_series(records, series_id)
+
+    dataframe = filter_bcb_series_period(dataframe, start_date, end_date)
 
     validate_bcb_series(dataframe=dataframe, expected_series_id=series_id, start_date=start_date, end_date=end_date)
 
@@ -97,18 +100,20 @@ def process_series(series_id: int) -> None:
 def main() -> None:
     configure_logging()
 
-    BCB_SERIES_IDS = [11, 432]
-    for series_id in BCB_SERIES_IDS:
+    series_ids = get_active_bcb_series_ids()
+
+    if not series_ids:
+        raise ValueError("Nenhuma série ativa foi encontrada no catálogo do BCB")
+
+    logger.info("Séries ativas encontradas no catálogo | séries=%s",series_ids)
+
+    for series_id in series_ids:
         try:
             process_series(series_id)
 
         except Exception:
-            logger.exception(
-                "Falha no processamento da série %s",
-                series_id,
-            )
+            logger.exception("Falha no processamento da série %s",series_id)
             raise
-
 
 if __name__ == "__main__":
     main()

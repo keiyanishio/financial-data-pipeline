@@ -36,6 +36,17 @@ GET_LATEST_OBSERVATION_DATE_SQL = text(
     """
 )
 
+
+GET_ACTIVE_BCB_SERIES_IDS_SQL = text(
+    """
+    SELECT series_id
+    FROM raw.bcb_series_catalog
+    WHERE is_active = TRUE
+    ORDER BY series_id
+    """
+)
+
+
 def get_latest_observation_date(series_id: int, engine: Engine | None = None) -> date | None:
     """
     Retorna a data mais recente carregada para uma série.
@@ -49,7 +60,21 @@ def get_latest_observation_date(series_id: int, engine: Engine | None = None) ->
     return latest_date
 
 
+def get_active_bcb_series_ids(engine: Engine | None = None) -> list[int]:
+    """
+    Retorna os códigos das séries ativas no catálogo do BCB.
+    """
 
+    database_engine = engine or get_engine()
+
+    with database_engine.connect() as connection:
+        series_ids = (
+            connection.execute(GET_ACTIVE_BCB_SERIES_IDS_SQL)
+            .scalars()
+            .all()
+        )
+
+    return [int(series_id) for series_id in series_ids]
 
 def upsert_bcb_series(dataframe: pd.DataFrame,engine: Engine | None = None) -> int:
     """
