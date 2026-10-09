@@ -8,6 +8,9 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 
+    AIRFLOW_CONN_SMTP_DEFAULT: >-
+      {"conn_type":"smtp","host":"smtp.gmail.com","login":"${AIRFLOW_SMTP_USER}","password":"${AIRFLOW_SMTP_PASSWORD}","port":587,"extra":{"from_email":"${AIRFLOW_SMTP_USER}","disable_ssl":true}}
+
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg://airflow:airflow@airflow-postgres:5432/airflow
 
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
