@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from pathlib import Path
 import logging
+import argparse
 
 from financial_pipeline.logging_config import configure_logging
 from financial_pipeline.database.bcb_repository import get_latest_observation_date,upsert_bcb_series, get_active_bcb_series_ids
@@ -96,24 +97,55 @@ def process_series(series_id: int) -> None:
     )
     print("\n\n")
 
+def parse_args() -> argparse.Namespace:
+    """
+    Lê os argumentos recebidos pela linha de comando.
+    """
 
-def main() -> None:
+    parser = argparse.ArgumentParser(description="Executa a ingestão de séries do BCB.")
+
+    parser.add_argument("--series-id", type=int, help="Código de uma série ativa do catálogo para processamento individual.")
+
+    return parser.parse_args()
+
+
+
+def main(series_id: int | None = None) -> None:
     configure_logging()
 
-    series_ids = get_active_bcb_series_ids()
+    active_series_ids = get_active_bcb_series_ids()
 
-    if not series_ids:
-        raise ValueError("Nenhuma série ativa foi encontrada no catálogo do BCB")
+    if not active_series_ids:
+        raise ValueError(
+            "Nenhuma série ativa foi encontrada no catálogo do BCB"
+        )
 
-    logger.info("Séries ativas encontradas no catálogo | séries=%s",series_ids)
+    if series_id is not None:
+        if series_id not in active_series_ids:
+            raise ValueError(
+                f"A série {series_id} não está ativa no catálogo do BCB"
+            )
 
-    for series_id in series_ids:
+        series_ids = [series_id]
+    else:
+        series_ids = active_series_ids
+
+    logger.info(
+        "Séries selecionadas para processamento | séries=%s",
+        series_ids,
+    )
+
+    for selected_series_id in series_ids:
         try:
-            process_series(series_id)
+            process_series(selected_series_id)
 
         except Exception:
-            logger.exception("Falha no processamento da série %s",series_id)
+            logger.exception(
+                "Falha no processamento da série %s",
+                selected_series_id,
+            )
             raise
 
 if __name__ == "__main__":
-    main()
+    arguments = parse_args()
+    main(series_id=arguments.series_id)
