@@ -1,7 +1,9 @@
+import os
 from datetime import timedelta
 
 import pendulum
 from airflow.sdk import DAG, task
+from airflow.providers.smtp.notifications.smtp import send_smtp_notification
 from airflow.providers.standard.operators.bash import BashOperator
 
 
@@ -13,6 +15,21 @@ default_args = {
     "retries": 2,
     "retry_delay": timedelta(minutes=2),
 }
+
+failure_notification = send_smtp_notification(
+    smtp_conn_id="smtp_default",
+    to=os.environ["AIRFLOW_ALERT_EMAIL"],
+    from_email=os.environ["AIRFLOW_SMTP_USER"],
+    subject="[Airflow] Falha na DAG {{ dag.dag_id }}",
+    html_content=(
+        "<h3>Falha no pipeline financeiro</h3>"
+        "<p><strong>DAG:</strong> {{ dag.dag_id }}</p>"
+        "<p><strong>Tarefa:</strong> {{ ti.task_id }}</p>"
+        "<p><strong>Execução:</strong> {{ run_id }}</p>"
+        "<p><strong>Tentativa:</strong> {{ ti.try_number }}</p>"
+        "<p><a href='{{ ti.log_url }}'>Abrir log da tarefa</a></p>"
+    ),
+)
 
 
 @task(task_id="get_active_series")
@@ -54,6 +71,7 @@ with DAG(
     catchup=False,
     max_active_runs=1,
     default_args=default_args,
+    on_failure_callback=failure_notification,
     tags=["bcb", "financial-data", "dbt"]
 ) as dag:
 
