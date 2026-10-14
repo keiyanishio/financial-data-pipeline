@@ -1,7 +1,8 @@
+import argparse
+import logging
+import os
 from datetime import date, timedelta
 from pathlib import Path
-import logging
-import argparse
 
 from financial_pipeline.logging_config import configure_logging
 from financial_pipeline.database.bcb_repository import get_latest_observation_date,upsert_bcb_series, get_active_bcb_series_ids
@@ -9,6 +10,8 @@ from financial_pipeline.ingestion.bcb import extract_bcb_series, normalize_bcb_s
 from financial_pipeline.storage.local import save_json, save_parquet
 from financial_pipeline.quality.bcb import validate_bcb_series
 from financial_pipeline.transformation.bcb import filter_bcb_series_period
+from financial_pipeline.database.pipeline_run_repository import create_bcb_pipeline_run, mark_bcb_pipeline_run_failed, mark_bcb_pipeline_run_success
+
 
 logger = logging.getLogger(__name__)
 
@@ -38,64 +41,107 @@ def process_series(series_id: int) -> None:
     start_date = calculate_start_date(series_id)
     end_date = date.today()
 
-    print(f"Iniciando série {series_id}")
-    print(f"Período: {start_date} até {end_date}")
-
-    records = extract_bcb_series(series_id, start_date, end_date)
-
-    dataframe = normalize_bcb_series(records, series_id)
-
-    dataframe = filter_bcb_series_period(dataframe, start_date, end_date)
-
-    validate_bcb_series(dataframe=dataframe, expected_series_id=series_id, start_date=start_date, end_date=end_date)
-
-    logger.info(
-        "Validações de qualidade concluídas | série=%s | linhas=%s",
-        series_id,
-        len(dataframe),
+    audit_run_id = create_bcb_pipeline_run(
+        series_id=series_id,
+        requested_start_date=start_date,
+        requested_end_date=end_date,
+        airflow_run_id=os.getenv("AIRFLOW_RUN_ID"),
     )
 
-    period = f"{start_date}_{end_date}"
+    try:
+        print(f"Iniciando série {series_id}")
+        print(f"Período: {start_date} até {end_date}")
 
-    raw_path = (
+        logger.info(
+            "Iniciando série %s | período=%s até %s | audit_run_id=%s",
+            series_id,
+            start_date,
+            end_date,
+            audit_run_id,
+        )
+
+        records = extract_bcb_series(series_id, start_date, end_date)
+
+        dataframe = normalize_bcb_series(records, series_id)
+
+        dataframe = filter_bcb_series_period(
+            dataframe,
+            start_date,
+            end_date,
+        )
+
+        validate_bcb_series(
+            dataframe=dataframe,
+            expected_series_id=series_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        logger.info(
+            "Validações de qualidade concluídas | série=%s | linhas=%s",
+            series_id,
+            len(dataframe),
+        )
+
+        period = f"{start_date}_{end_date}"
+
+        raw_path = (
             DATA_DIR
             / "raw"
             / "bcb"
             / f"series_{series_id}"
             / f"{period}.json"
-    )
+        )
 
-    processed_path = (
+        processed_path = (
             DATA_DIR
             / "processed"
             / "bcb"
             / f"series_{series_id}"
             / f"{period}.parquet"
-    )
+        )
 
-    save_json(records, raw_path)
-    save_parquet(dataframe, processed_path)
+        save_json(records, raw_path)
+        save_parquet(dataframe, processed_path)
 
-    loaded_rows = upsert_bcb_series(dataframe)
+        loaded_rows = upsert_bcb_series(dataframe)
 
-    print(f"JSON bruto: {raw_path}")
-    print(f"Parquet tratado: {processed_path}")
-    print(f"Linhas processadas: {loaded_rows}")
-    logger.info(
-        "Iniciando série %s | período=%s até %s",
-        series_id,
-        start_date,
-        end_date,
-    )
+        mark_bcb_pipeline_run_success(
+            run_id=audit_run_id,
+            rows_loaded=loaded_rows,
+        )
 
-    logger.info(
-        "Série %s concluída | linhas=%s | json=%s | parquet=%s",
-        series_id,
-        loaded_rows,
-        raw_path,
-        processed_path,
-    )
-    print("\n\n")
+        print(f"JSON bruto: {raw_path}")
+        print(f"Parquet tratado: {processed_path}")
+        print(f"Linhas processadas: {loaded_rows}")
+
+        logger.info(
+            (
+                "Série %s concluída | linhas=%s | json=%s | "
+                "parquet=%s | audit_run_id=%s"
+            ),
+            series_id,
+            loaded_rows,
+            raw_path,
+            processed_path,
+            audit_run_id,
+        )
+
+        print("\n\n")
+
+    except Exception as error:
+        try:
+            mark_bcb_pipeline_run_failed(
+                run_id=audit_run_id,
+                error_message=str(error),
+            )
+        except Exception:
+            logger.exception(
+                "Falha ao atualizar a auditoria | audit_run_id=%s",
+                audit_run_id,
+            )
+
+        raise
 
 def parse_args() -> argparse.Namespace:
     """

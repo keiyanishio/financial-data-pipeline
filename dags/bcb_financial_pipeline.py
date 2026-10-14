@@ -58,6 +58,7 @@ def build_ingestion_task_arguments() -> list[dict]:
             ),
             "env": {
                 "SERIES_ID": str(series_id),
+                "AIRFLOW_RUN_ID": "{{ run_id }}",
             },
         }
         for series_id in series_ids
