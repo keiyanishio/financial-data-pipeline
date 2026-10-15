@@ -2,7 +2,15 @@
 
 A local financial data platform that extracts public time series from the Brazilian Central Bank (BCB), validates and stores the data, and builds analytics-ready models with dbt.
 
-The project demonstrates a complete data engineering workflow using Python, PostgreSQL, Apache Airflow, dbt, Docker, automated tests, execution auditing, and e-mail alerts.
+The project implements a complete data engineering workflow using Python, PostgreSQL, Apache Airflow, dbt, Docker, automated tests, execution auditing, and e-mail alerts.
+
+## Project context
+
+This is a self-directed, local-first data engineering project built to apply production-oriented practices using public financial data.
+
+It covers incremental and idempotent ingestion, workflow orchestration, data quality, analytical modeling, automated testing, observability, and reproducible infrastructure.
+
+The current V1 runs locally with Docker Compose. Distributed execution, cloud storage, managed secrets, and cloud deployment are intentionally left as future enhancements.
 
 ## Architecture
 
